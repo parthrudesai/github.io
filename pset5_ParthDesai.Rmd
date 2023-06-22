@@ -1,0 +1,185 @@
+---
+title: "PSET5_ParthDesai"
+author: "Parth Desai"
+date: "2023-03-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Question 1
+
+## Part 1.1
+```{r part1.1}
+load("CreditClaim.RData")
+x <- credit_claim$x
+y <- credit_claim$y
+
+(length(subset(y, y==1))/length(y)) * 100
+```
+
+#### 25.846% of documents claim credit
+
+## Part 1.2
+
+#### There are 170,000 observations compared to the 6,046,839 predictors that are there. This would lead to overfitting as the number of predictors is vastly more than the observation count.
+
+## Part 1.3
+```{r part1.3}
+top_20 <- as.matrix(colMeans(x))
+top_20_ord <- top_20[order(-colMeans(x)),]
+final_top_20 <- head(top_20_ord, 20)
+final_top_20
+```
+
+#### The top 20 words all range being mention approximately 9/10ths to 3/5ths of the time in a document. Many of the words have to do with bureacracy or members of the bureacracy.
+
+## Part 1.4
+```{r part1.4}
+log_model <- glm(y ~ x[,'congress'] + x[,'million'] + x[,'energy'] + x[,'funding'] + x[,'legislation'] + x[,'release'] + x[,'american'] + x[,'byline'] + x[,'dateline'] + x[,'national'] + x[,'fed'] + x[,'contact'] + x[,'support'] + x[,'care'] + x[,'tax'] + x[,'help'] + x[,'government'] + x[,'security'] + x[,'people'] + x[,'president'], family = 'binomial', data = credit_claim)
+summary(log_model)
+```
+
+## Bonus
+#### The word 'dateline' is dropped to NA because it is a singularity.
+
+## Part 1.5
+```{r part1.5}
+predictions <- predict(log_model, type = 'response')
+prediction_classes <- ifelse(predictions > 0.5, 1, 0)
+head(prediction_classes, 10)
+```
+## Part 1.6
+```{r part 1.6}
+error_rate <- mean(prediction_classes != y)
+print(error_rate)
+```
+
+## Note
+```{r note}
+one_matrix <- as.data.frame(cbind(y, final_top_20))
+```
+
+## Part 1.7
+```{r part1.7}
+loocv_predictions <- nrow(x)
+
+for (i in 1:nrow(one_matrix)) {
+  gen_model <- glm(y ~ x[,'congress'] + x[,'million'] + x[,'energy'] + x[,'funding'] + x[,'legislation'] + x[,'release'] + x[,'american'] + x[,'byline'] + x[,'dateline'] + x[,'national'] + x[,'fed'] + x[,'contact'] + x[,'support'] + x[,'care'] + x[,'tax'] + x[,'help'] + x[,'government'] + x[,'security'] + x[,'people'] + x[,'president'], family = 'binomial', data = as.data.frame(one_matrix[,-i]))
+  
+  loocv_predictions[i] <- ifelse(predict(gen_model, as.data.frame(one_matrix[i, ]), type = 'response') > 0.5, 1, 0)
+}
+
+```
+
+## Part 1.8
+```{r part1.8}
+loocv_error_rate <- mean(loocv_predictions != credit_claim$y)
+print(loocv_error_rate)
+```
+
+## Part 1.9
+
+#### The out-of-sample error is greater than the in-sample error.
+
+
+#Question 2
+```{r part2prelim}
+library(glmnet)
+library (ggplot2)
+```
+## Part 2.1
+```{r part2.1}
+load("CreditClaim.RData")
+x <- credit_claim$x
+y <- credit_claim$y
+n.total <- length(y)
+prop.train <- 0.7
+set.seed(54321)
+r <- sample(1:n.total,round(prop.train*n.total), replace = FALSE)
+x.train <- x[r,]
+x.test <- x[-r,]
+y.train <- y[r]
+y.test <- y[-r]
+```
+## Part 2.2
+```{r part 2.2}
+set.seed(123)
+cv.results <- cv.glmnet(x = x.train, y = y.train,
+family = "binomial", nfolds = 5, alpha = 1)
+```
+
+#### The first line sets the seed for the random number generator, ensuring that  results are reproducible. The second line uses the 'cv.glmnet' function, which will perform a cross-validation on the model, and saves it as cv.results. The arguments taken for 'cv.glmnet' are: the predictor data, in this case 'x.train', the response variable, in this case 'y.train', the family, in this it is binomial which will return either a 1 or 0, the nfolds, which is the number of folds in the cross-validation process (5), and alpha, which is the parameter for the penalties in the LASSO model and is set to 1 for a complete use of the L1 penalty and none of the L2 penalty.
+
+## Part 2.3
+```{r part2.3}
+summary(cv.results)
+```
+
+### There are 100 lambdas tested. Given 5 folds and 100 lambda values, a total of 500 LASSO models were fitted. The binomial deviance loss function is being used to compute CV error.
+
+## Part 2.4
+```{r part2.4}
+a <- ggplot(data = as.data.frame(cv.results$lambda), aes(x=log(cv.results$lambda), y=cv.results$cvm, label=cv.results$lambda))
+a + geom_point() + geom_errorbar(aes(ymin = cv.results$cvm-sd(cv.results$cvm), ymax=cv.results$cvm+sd(cv.results$cvm))) + xlab("Log(lambda)") + ylab("Binomial Deviance")
+
+
+```
+
+## Part 2.5
+#### Given the above graphic, CV error is minimized when lambda is between the log values of -3.5 to -3.1.
+
+## Part 2.6
+```{r part2.6}
+optimal_lam <- cv.results$lambda.min
+optimal_lam
+
+las_model <- glmnet(x = x.train, y=y.train, family="binomial", alpha = 1, lambda = optimal_lam)
+lasso.coef <- coef(las_model)
+print(las_model)
+
+num_nonzero <- sum(lasso.coef[] != 0)
+num_nonzero
+```
+
+#### There are 88 coefficients not shrunk to 0, and 1 intercept. It can be alternatively be said that there are 88 degrees of freedom.
+
+## Bonus
+```{r part2bonus}
+lasso.coef_indices <- which(lasso.coef[-1] != 0)
+lasso.coef_names <- colnames(x.train)[lasso.coef_indices]
+lasso.coef_names
+```
+
+## Part 2.7
+```{r part2.7}
+lasso.probs <- predict(las_model, newx = x.test, type = "response")
+lasso.pred <- ifelse(lasso.probs > 0.5, 1, 0)
+test.error <- mean(lasso.pred != y.test)
+test.error
+```
+
+
+## Part 2.8
+```{r part2.8}
+B <- 200
+pred.probs <- c()
+for (i in 1:B) {
+  boot.sample <- sample(nrow(x.train), replace = TRUE)
+  x.boot <- x.train[boot.sample, ]
+  y.boot <- y.train[boot.sample]
+  boot.fit <- glmnet(x = x.boot, y = y.boot, alpha = 1, lambda = cv.results$lambda.1se)
+  x.test.first <- as.matrix(x.test[i, ])
+  pred.probs[i] <- predict(boot.fit, newx = x.test.first[,1], type = "response")
+}
+
+
+conf.int <- quantile(pred.probs, c(0.025, 0.975))
+
+conf.int
+ 
+```
+
+

@@ -1,0 +1,68 @@
+---
+title: "pset1_ParthDesai"
+author: "Parth Desai"
+date: "2023-02-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+## Part 1.1
+```{r vec1}
+vec1 <- seq(1:1000)
+head(vec1)
+```
+## Part 1.2
+```{r vec2}
+vec2 <- sample(vec1, 1000, replace = FALSE, prob = NULL)
+head(vec2)
+```
+## Part 1.3
+```{r dat}
+dat <- data.frame(vec1, vec2)
+head(dat)
+```
+## Part 1.4
+```{r correlate}
+cor(vec1, vec2, use = "everything")
+```
+## Part 1.5
+```{r comment}
+## I expected the correlation to be close to zero, as having a ordered dataset compared to a random dataset would mean that there would be high levels of variance, thus the R-squared value would approach zero.
+```
+## Part 2.1
+```{r hdat}
+hdat <- read.csv("data_health_synth_small.csv")
+head(hdat)
+```
+## Part 2.2
+```{r comment2}
+## Each row represents each patient, and each column represents the 4 characteristics of each patient: total medical expenditure rounded to the nearest 100, whether the patient's race was black or white, whether the patient was a female or not, and their average systolic blood pressure over a year.
+```
+## Part 2.3
+```{r summary}
+summary(hdat)
+
+
+hdat.white <- subset(hdat, race == 'white') ## done in order to know the number of white patients, as summary() does not give a value
+head(hdat.white)
+hdat.female <- subset(hdat, female == 1) ## done in order to know the number of female patients, as summary() gives a numeric value not representative of the binary nature of the question
+head(hdat.female)
+
+mean(hdat$cost)
+```
+
+## Part 2.4
+```{r mean_cost_across_racial_groups}
+hdat.black <- subset(hdat, race == 'black')
+hdat.mean.cost.white <- mean(hdat.white$cost)
+hdat.mean.cost.white
+hdat.mean.cost.black <- mean(hdat.black$cost)
+hdat.mean.cost.black
+hdat.mean.cost <- (hdat.mean.cost.white + hdat.mean.cost.black)/2
+hdat.mean.cost
+```

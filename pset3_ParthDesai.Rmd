@@ -1,0 +1,233 @@
+---
+title: "PSET3_ParthDesai"
+author: "Parth Desai"
+date: "2023-02-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# Question 1
+```{r q1prelim}
+set.seed(123)
+x <- rexp(1500, rate = 2)
+```
+
+## Part 1.1
+```{r part1.1}
+
+boot_univariate <- function(datvec, statint, B, alpha){
+  samp <- c()
+  for (i in 1:B) {
+    samp[i] <- statint(sample((datvec), length(datvec), replace = TRUE))
+  }
+  sd(samp)
+  return(quantile(samp, probs = c(alpha/2, (alpha/2) + (1-alpha))))
+}
+```
+
+## Part 1.2
+```{r part1.2}
+boot_univariate(datvec = x, statint = median, B = 10000, alpha = 0.05)
+```
+#### The boot_univariate function passed with the specific parameters as shown above represent that for dataset x, when we are interested in the mean, with 10,000 resamples of x, there is 95% confidence that the values lie between 33.13953% and 38.56648%.
+
+### Bonus 1
+```{r bonus1}
+summary(x)
+boot_univariate(datvec = x, statint = median, B = 10000, alpha = 0.5)
+```
+
+# Question 2
+```{r q2prelim}
+library(ggplot2)
+```
+## Part 2.1
+```{r part2.1}
+ca2006 <- read.csv('ca2006.csv')
+```
+
+## Part 2.2
+```{r part 2.2}
+plot_a <- ggplot(data = ca2006, aes(x=dem_pres_2004, y= prop_d))
+plot_a + geom_point() + 
+  ggtitle("Proportion of Democratic votes in General vs. 2004 Presidential Election") + 
+  xlab("Proportion of Democratic votes") + 
+  ylab("Two-Party votes in 2004 Presidential Election")
+```
+
+## Part 2.3
+```{r part 2.3}
+mod1 <- lm(prop_d ~ dem_pres_2004, data = ca2006)
+summary(mod1)
+plot_b <- ggplot(data = mod1, aes(x = dem_pres_2004, y = prop_d)) 
+plot_b + geom_point() + geom_smooth(method = "lm", formula = y ~ x) + 
+  coord_cartesian(ylim = c(0,1), xlim = c(0,1)) + 
+  ggtitle('Proportion Model of Democratic Votes in General vs. 2004 Presidential Election') + 
+  xlab('Proportion Model of Democratic') + 
+  ylab('Model of Two-Party votes in 2004 Presidential Election')
+```
+
+## Part 2.4
+```{r part2.4}
+let_predict <- function(model, x.star){
+  a <- model$coefficients
+  return(a %*% x.star)
+}
+
+newdata1 <- c(1, dem_pres_2004 = 0.5)
+let_predict(mod1, newdata1)
+```
+
+## Part 2.5
+```{r part2.5}
+mod2 <- lm(prop_d ~ dem_pres_2004 + dem_pres_2000 + dem_inc, data = ca2006)
+```
+
+## Part 2.6
+```{r part2.6}
+newdata2 <- c(1, dem_pres_2004 = 0.5, dem_pres_2000 = 0.5, dem_inc = 1)
+let_predict(mod2, newdata2)
+```
+
+## Part 2.7
+```{r part2.7}
+set.seed(pi)
+B = 10000
+bivariate = c()
+multivariate = c()
+boot_samp <- c()
+for (x in 1:B) {
+  boot_samp <- sample(nrow(ca2006), length(ca2006$district), replace = TRUE)
+  new_df <- ca2006[boot_samp, ]
+  
+  mod3 <- lm(prop_d ~ dem_pres_2004, data = new_df)
+  mod4 <- lm(prop_d ~ dem_pres_2004 + dem_pres_2000 + dem_inc, data = new_df)
+  
+  bivariate[x] = let_predict(mod3, newdata1)
+  multivariate[x] = let_predict(mod4, newdata2)
+}
+
+```
+
+## Part 2.8
+```{r part2.8p1}
+bivariate_ci <- c(quantile(bivariate, probs = 0.025), quantile(bivariate, probs = 0.975))
+bivariate_ci
+multivariate_ci <- c(quantile(multivariate, probs = 0.025), quantile(multivariate, probs = 0.975))
+multivariate_ci
+
+```
+#### The bivariate confidence interval is from 50.50168% to 57.16776% and the multivariate confidence interval is 
+54.9606% to 69.24033%
+
+```{r part2.8p2}
+hist(bivariate)
+hist(multivariate)
+```
+
+## Part 2.9
+```{r part2.9p1}
+bivariate_correct <- c()
+for(x in 1:B){
+  if(bivariate[x] > 0.5){
+    bivariate_correct[x] <- as.numeric(bivariate[x] > 0.5)
+  }
+  else{
+    bivariate_correct[x] <- 0
+  }
+}
+bivariate_only_correct <- subset(bivariate_correct, bivariate_correct[] == 1)
+
+(length(bivariate_only_correct)/ length(bivariate_correct)) * 100
+```
+#### Around 98.8% the bivariate regression reports the Democrat winning
+
+```{r part2.9p2}
+multivariate_correct <- c()
+for (x in 1:B) {
+  if(multivariate[x] > 0.5){
+    multivariate_correct[x] <- as.numeric(multivariate[x] > 0.5)
+  }
+  else{
+    multivariate_correct[x] <- 0
+  }
+}
+
+multivariate_only_correct <- subset(multivariate_correct, multivariate_correct[] == 1)
+
+(length(multivariate_only_correct)/length(multivariate_correct)) * 100
+```
+#### Around 99.96% the multivariate regression reports the Democrat winning
+
+# Question 3
+
+## Part 3.1
+```{r part3.1}
+vote92 <- read.csv('vote92.csv')
+```
+
+## Part 3.2
+```{r part3.2} 
+(length(subset(vote92, clintonvote == 1)[,1])/length(vote92[,1])) * 100
+```
+#### The percentage of voters for Clinton was approximately 45.764% of respondents.
+
+## Part 3.3
+```{r part3.3}
+mod5 <- glm(clintonvote ~ dem + female + clintondist, family = binomial(link = "logit"), 
+            data = vote92)
+```
+
+## Part 3.4
+```{r part3.4}
+probvot <- function(data_set, model_input, factor1, factor2, factor3, 
+                    regression_type,x.star){
+  model <- list()
+  model <- glm(model_input ~ factor1 + factor2 + factor3, family = regression_type, 
+               data = data_set)
+  return(let_predict(model, x.star))
+}
+
+probvote <- function(coefs, newdata, betas, ){
+  betas = unname(coefs) %*% 2
+}
+```
+
+## Part 3.5
+```{r part3.5}
+probvot(vote92, vote92$clintonvote, vote92$dem, vote92$female, vote92$clintondist, 
+        binomial(link = "logit"), x.star <- c(1, female = 1, dem = 1, clintondist = 1))
+```
+
+## Part 3.6
+```{r part3.6}
+mod6 <- lm(clintonvote ~ dem + female + clintondist, data = vote92)
+func <- function(model, datfrm){
+  values <- c()
+  for (x in 1:length(datfrm[,1])) {
+    values[x] <- let_predict(model, c(1, dem = datfrm$dem[x], 
+                                      female = datfrm$female[x], datfrm$clintondist[x]))
+  }
+  return(values)
+}
+
+
+lin_regress <- func(mod6, vote92)
+head(lin_regress)
+
+mod7 <- glm(clintonvote ~ dem + female + clintondist, 
+            family = binomial(link = "logit"), data = vote92)
+logist_regress <- func(mod7, vote92)
+head(logist_regress)
+
+finale <- data.frame(lin_regress, logist_regress)
+
+h <- ggplot(data = finale, aes(x = logist_regress, y = lin_regress))
+h + geom_point() + geom_smooth(method = "lm", formula = y ~ x + I(x^2)) + 
+  coord_cartesian(ylim = c(0,2), xlim = c(0,2))
+```
